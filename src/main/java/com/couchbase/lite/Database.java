@@ -1060,6 +1060,21 @@ public final class Database {
             }
         }
 
+        if (dbVersion < 12) {
+            String upgradeSql;
+            // Improve perfs on view index update
+            upgradeSql = "CREATE UNIQUE INDEX IF NOT EXISTS idx_maps_view_sequence ON maps (sequence, view_id); " +
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_revs_seq_parent ON revs (sequence, parent); ";
+            // Improve perfs on updates / deletes
+            upgradeSql += "DROP INDEX IF EXISTS revs_current;" +
+                    "DROP INDEX IF EXISTS revs_cur_deleted;" +
+                    "CREATE INDEX revs_current ON revs(doc_id, current desc, deleted, revid desc);";
+            upgradeSql += "PRAGMA user_version = 11";
+            if (!initialize(upgradeSql)) {
+                database.close();
+                return false;
+            }
+        }
 
         try {
             attachments = new BlobStore(getAttachmentStorePath());
